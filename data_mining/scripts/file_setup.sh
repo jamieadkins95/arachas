@@ -22,7 +22,7 @@ This script prepares a .dat file for processing to get game data.
 
 OPTIONS:
     --templates          Path to GwentCardTemplates.dat
-    --abilites           Path to GwentCardAbilities.dat
+    --abilities           Path to GwentCardAbilities.dat
     --tooltips           Path to GwentTooltips.dat
     --tooltip-strings    Path to tooltips_en-US.dat
     --card-names         Path to cards_en-US.dat
@@ -47,7 +47,10 @@ function prepareFile {
     iconv -f ISO-8859-1 -t UTF-8 $1 > "$OUTPUT.tmp"
     # Then remove everything before the first xml tag.
     sed 's/.*<?/<?/' "$OUTPUT.tmp" > "$OUTPUT"
-    rm "$OUTPUT.tmp"
+    # Replace any instances of '&' with '&amp;' since '&' is an illegal character in xml.
+    sed 's/\&/\&amp\;/' "$OUTPUT" > "$OUTPUT.tmp"
+    # Remove any lines that don't contain a '<' or a '>'.
+    mv "$OUTPUT.tmp" "$OUTPUT"
 }
 
 # Parse user input.
