@@ -39,17 +39,38 @@ function checkFile {
     fi
 }
 
-function prepareFile {
+function prepareXmlFile {
     OUTPUT="$(dirname $0)/../outputs/$2.xml"
     echo ${OUTPUT}
 
-    # First, make sure everything is in utf-8. (Dunno why we have to use ISO-8859-1 here, but everythign else throws an error)
-    iconv -f ISO-8859-1 -t UTF-8 $1 > "$OUTPUT.tmp"
+    # First, make sure everything is in utf-8.
+    iconv -f UTF-8 -t UTF-8 -c $1 > "$OUTPUT.tmp"
+
     # Then remove everything before the first xml tag.
-    sed 's/.*<?/<?/' "$OUTPUT.tmp" > "$OUTPUT"
+    sed -i 's/.*<?/<?/' "$OUTPUT.tmp"
+
+    # Remove any lines that don't contain a '<'. Legit xml lines will always contain a '<'.
+    sed -i '/</!d' "$OUTPUT.tmp"
+
     # Replace any instances of '&' with '&amp;' since '&' is an illegal character in xml.
-    sed 's/\&/\&amp\;/' "$OUTPUT" > "$OUTPUT.tmp"
-    # Remove any lines that don't contain a '<' or a '>'.
+    sed -i 's/\&/\&amp\;/' "$OUTPUT.tmp"
+
+    mv "$OUTPUT.tmp" "$OUTPUT"
+}
+
+function prepareStringFile {
+    OUTPUT="$(dirname $0)/../outputs/$2.txt"
+    echo ${OUTPUT}
+
+    # First, make sure everything is in utf-8.
+    iconv -f UTF-8 -t UTF-8 -c $1 > "$OUTPUT.tmp"
+
+    # Remove any lines that don't contain relevant information.
+    sed -i "/$3/!d" "$OUTPUT.tmp"
+
+    # Replace any instances of '&' with '&amp;' since '&' is an illegal character in xml.
+    sed -i 's/\&/\&amp\;/' "$OUTPUT.tmp"
+
     mv "$OUTPUT.tmp" "$OUTPUT"
 }
 
@@ -80,7 +101,7 @@ case $key in
     shift # past argument
     ;;
     *)
-            # unknown option
+    # unknown option
     ;;
 esac
 shift # past argument or value
@@ -93,10 +114,10 @@ checkFile ${TOOLTIPS_FILE}
 checkFile ${TOOLTIP_STRINGS_FILE}
 checkFile ${CARD_NAMES_FILE}
 
-prepareFile ${TEMPLATE_FILE} "templates"
-prepareFile ${ABILITIES_FILE} "abilities"
-prepareFile ${TOOLTIPS_FILE} "tooltips"
-prepareFile ${TOOLTIP_STRINGS_FILE} "tooltip_strings"
-prepareFile ${CARD_NAMES_FILE} "card_names"
+prepareXmlFile ${TEMPLATE_FILE} "templates"
+prepareXmlFile ${ABILITIES_FILE} "abilities"
+prepareXmlFile ${TOOLTIPS_FILE} "tooltips"
+prepareStringFile ${TOOLTIP_STRINGS_FILE} "tooltip_strings" "tooltips\""
+prepareStringFile ${CARD_NAMES_FILE} "card_names" "cards\""
 
 echo "Preparation complete. Result outputted to $OUTPUT"
