@@ -10,7 +10,6 @@ def saveJson(filename, cardList):
     with open(filepath, "w", encoding="utf-8", newline="\n") as f:
         json.dump(cardList, f, sort_keys=True, indent=2, separators=(',', ': '))
 
-
 xml_folder = sys.argv[1]
 
 if xml_folder[-1] != "/":
@@ -30,8 +29,6 @@ if not os.path.isfile(tooltip_strings_path):
     print("Couldn't find tooltip strings at " + tooltip_strings_path)
     exit()
 
-tooltip_strings = open(tooltip_strings_path, "r")
-
 tree = xml.parse(templates_path)
 templates_root = tree.getroot()
 cardData = {}
@@ -47,19 +44,24 @@ for template in templates_root:
     card['loyalty'] = []
     card['faction'] = template.attrib['factionId']
 
-    card['name'] = ""
+    card['name'] = template.attrib['dbgStr']
     card['info'] = ""
     card['flavor'] = ""
     card['category'] = []
     card['craft'] = {}
     card['mill'] = {}
 
-    #tooltipId = template.find('Tooltip').attrib['key']   Why is this null?
+    tooltipId = "-1"
+    if template.find('Tooltip') != None:
+        tooltipId = template.find('Tooltip').attrib['key']
 
-    #for tooltip in tooltip_strings:
-    #    split = tooltip.split(";")
-    #    if tooltipId in split[1]:
-    #        card['info'] = split[2].replace("\"", "")
+    tooltip_strings = open(tooltip_strings_path, "r")
+    for tooltip in tooltip_strings:
+        split = tooltip.split(";")
+        if tooltipId in split[1]:
+            card['info'] = split[2].replace("\"", "")
+
+    tooltip_strings.close()
 
     for flag in template.iter('flag'):
         key = flag.attrib['name']
@@ -87,7 +89,7 @@ for template in templates_root:
         art = {}
         art['fullsizeImageUrl'] = ""
         art['thumbnailImageUrl'] = ""
-        art['artist'] = ""
+        art['artist'] = definition.find("UnityLinks").find("StandardArt").attrib['author']
         variation['art'] = art
 
         card['variations'][variationId] = variation
