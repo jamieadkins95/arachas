@@ -55,10 +55,14 @@ for template in templates_root:
     if template.find('Tooltip') != None:
         tooltipId = template.find('Tooltip').attrib['key']
 
+    descriptionId = tooltipId
+    while len(descriptionId) < 4:
+        descriptionId = "0" + descriptionId
+
     tooltip_strings = open(tooltip_strings_path, "r")
     for tooltip in tooltip_strings:
         split = tooltip.split(";")
-        if tooltipId in split[1]:
+        if descriptionId in split[1]:
             card['info'] = split[2].replace("\"", "")
 
     tooltip_strings.close()
