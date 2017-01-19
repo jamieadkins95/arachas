@@ -90,3 +90,10 @@ ENV/
 
 # Image folder
 media/
+
+
+# Input files
+*.dat
+
+# Output Files
+data_mining/outputs/
