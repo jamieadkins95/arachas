@@ -25,11 +25,18 @@ if not os.path.isfile(templates_path):
     print("Couldn't find templates.xml at " + templates_path)
     exit()
 
+tooltip_strings_path = xml_folder + "tooltip_strings.txt"
+if not os.path.isfile(tooltip_strings_path):
+    print("Couldn't find tooltip strings at " + tooltip_strings_path)
+    exit()
+
+tooltip_strings = open(tooltip_strings_path, "r")
+
 tree = xml.parse(templates_path)
-root = tree.getroot()
+templates_root = tree.getroot()
 cardData = {}
 
-for template in root:
+for template in templates_root:
     cardId = template.attrib['id']
     card = {}
 
@@ -46,6 +53,13 @@ for template in root:
     card['category'] = []
     card['craft'] = {}
     card['mill'] = {}
+
+    #tooltipId = template.find('Tooltip').attrib['key']   Why is this null?
+
+    #for tooltip in tooltip_strings:
+    #    split = tooltip.split(";")
+    #    if tooltipId in split[1]:
+    #        card['info'] = split[2].replace("\"", "")
 
     for flag in template.iter('flag'):
         key = flag.attrib['name']
