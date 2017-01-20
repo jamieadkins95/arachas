@@ -107,4 +107,4 @@ prepareXmlFile ${TOOLTIPS_FILE} "tooltips"
 prepareStringFile ${TOOLTIP_STRINGS_FILE} "tooltip_strings" "tooltips\""
 prepareStringFile ${CARD_NAMES_FILE} "card_names" "cards\""
 
-echo "Preparation complete. Result outputted to $OUTPUT"
+echo "Preparation complete. Result outputted to $(dirname $0)/../outputs/"
