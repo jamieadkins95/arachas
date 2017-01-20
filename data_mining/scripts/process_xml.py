@@ -3,6 +3,7 @@ import xml.etree.ElementTree as xml
 import sys
 import os
 import json
+import re
 
 def saveJson(filename, cardList):
     filepath = os.path.join("../outputs/" + filename)
@@ -10,8 +11,32 @@ def saveJson(filename, cardList):
     with open(filepath, "w", encoding="utf-8", newline="\n") as f:
         json.dump(cardList, f, sort_keys=True, indent=2, separators=(',', ': '))
 
+def cleanHtml(raw_html):
+  cleanr = re.compile('<.*?>')
+  cleantext = re.sub(cleanr, '', raw_html)
+  return cleantext
+
+def getTooltip(card_template):
+    tooltipId = "-1"
+    if template.find('Tooltip') != None:
+        tooltipId = template.find('Tooltip').attrib['key']
+
+    descriptionId = tooltipId
+    while len(descriptionId) < 4:
+        descriptionId = "0" + descriptionId
+
+    tooltip_strings = open(tooltip_strings_path, "r")
+    for tooltip in tooltip_strings:
+        split = tooltip.split(";")
+        if descriptionId in split[1]:
+            # Remove any quotation marks, new lines and html tags.
+            return cleanHtml(split[2].replace("\"", "").replace("\n", ""))
+
+    tooltip_strings.close()
+
 xml_folder = sys.argv[1]
 
+# Add a backslash on the end if it doesn't exist.
 if xml_folder[-1] != "/":
     xml_folder = xml_folder + "/"
 
@@ -42,7 +67,7 @@ for template in templates_root:
     card['type'] = template.attrib['group']
     card['lane'] = []
     card['loyalty'] = []
-    card['faction'] = template.attrib['factionId']
+    card['faction'] = template.attrib['factionId'].replace("NorthernKingdom", "Northern Realms")
 
     card['name'] = template.attrib['dbgStr']
     card['info'] = ""
@@ -51,21 +76,7 @@ for template in templates_root:
     card['craft'] = {}
     card['mill'] = {}
 
-    tooltipId = "-1"
-    if template.find('Tooltip') != None:
-        tooltipId = template.find('Tooltip').attrib['key']
-
-    descriptionId = tooltipId
-    while len(descriptionId) < 4:
-        descriptionId = "0" + descriptionId
-
-    tooltip_strings = open(tooltip_strings_path, "r")
-    for tooltip in tooltip_strings:
-        split = tooltip.split(";")
-        if descriptionId in split[1]:
-            card['info'] = split[2].replace("\"", "")
-
-    tooltip_strings.close()
+    card['info'] = getTooltip(template)
 
     for flag in template.iter('flag'):
         key = flag.attrib['name']
