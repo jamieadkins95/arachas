@@ -21,12 +21,7 @@ usage: $0 options
 This script prepares a .dat file for processing to get game data.
 
 OPTIONS:
-    --templates          Path to GwentCardTemplates.dat
-    --abilities           Path to GwentCardAbilities.dat
-    --tooltips           Path to GwentTooltips.dat
-    --tooltip-strings    Path to tooltips_en-US.dat
-    --card-names         Path to cards_en-US.dat
-    
+    --inputs          Path to folder containing GwentCardTemplates.dat, GwentCardAbilities.dat, GwentTooltips.dat, tooltips_en-US.dat, cards_en-US.dat
 EOF
 }
 
@@ -55,6 +50,10 @@ function prepareXmlFile {
     # Replace any instances of '&' with '&amp;' since '&' is an illegal character in xml.
     sed -i 's/\&/\&amp\;/' "$OUTPUT.tmp"
 
+    # Remove any instances of '{' and '}' since they are illegal characters in xml.
+    sed -i 's/{//' "$OUTPUT.tmp"
+    sed -i 's/}//' "$OUTPUT.tmp"
+
     mv "$OUTPUT.tmp" "$OUTPUT"
 }
 
@@ -80,24 +79,12 @@ do
 key="$1"
 
 case $key in
-    --templates)
-    TEMPLATE_FILE="$2"
-    shift # past argument
-    ;;
-    --abilities)
-    ABILITIES_FILE="$2"
-    shift # past argument
-    ;;
-    --tooltips)
-    TOOLTIPS_FILE="$2"
-    shift # past argument
-    ;;
-    --tooltip-strings)
-    TOOLTIP_STRINGS_FILE="$2"
-    shift # past argument
-    ;;
-    --card-names)
-    CARD_NAMES_FILE="$2"
+    --inputs)
+    TEMPLATE_FILE="$2GwentCardTemplates.dat"
+    ABILITIES_FILE="$2GwentCardAbilities.dat"
+    TOOLTIPS_FILE="$2GwentTooltips.dat"
+    TOOLTIP_STRINGS_FILE="$2tooltips_en-US.dat"
+    CARD_NAMES_FILE="$2cards_en-US.dat"
     shift # past argument
     ;;
     *)
