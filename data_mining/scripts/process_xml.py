@@ -5,6 +5,250 @@ import os
 import json
 import re
 
+def saveJson(filename, cardList):
+    filepath = os.path.join("../outputs/" + filename)
+    print("Saving %s cards to: %s" % (len(cardList), filepath))
+    with open(filepath, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(cardList, f, sort_keys=True, indent=2, separators=(',', ': '))
+
+def cleanHtml(raw_html):
+    cleanr = re.compile('<.*?>')
+    cleantext = re.sub(cleanr, '', raw_html)
+    return cleantext
+
+def getRawTooltips():
+    TOOLTIP_STRINGS_PATH = xml_folder + "tooltip_strings.txt"
+    if not os.path.isfile(TOOLTIP_STRINGS_PATH):
+        print("Couldn't find tooltip_strings.txt at " + TOOLTIP_STRINGS_PATH)
+        exit()
+
+    rawTooltips = {}
+
+    tooltipsFile = open(TOOLTIP_STRINGS_PATH, "r")
+    for tooltip in tooltipsFile:
+        split = tooltip.split(";")
+        tooltipId = split[1].replace("tooltip_","").replace("_description","").replace("\"", "").lstrip("0")
+
+        # Remove any quotation marks, new lines and html tags.
+        rawTooltips[tooltipId] = cleanHtml(split[2].replace("\"", "").replace("\n", ""))
+
+    return rawTooltips
+
+def getAbilityData():
+
+    CARD_ABILITIES_PATH = xml_folder + "abilities.xml"
+    if not os.path.isfile(CARD_ABILITIES_PATH):
+        print("Couldn't find abilities.xml at " + CARD_ABILITIES_PATH)
+        exit()
+
+    abilities = {}
+
+    tree = xml.parse(CARD_ABILITIES_PATH)
+    root = tree.getroot()
+
+    for ability in root.iter('Ability'):
+        abilities[ability.attrib['id']] = ability
+
+    return abilities
+
+def getAbilityValue(abilityId, paramName):
+    ability = ABILITIES[abilityId]
+    if ability.find(paramName) != None:
+        return ability.find(paramName).attrib['V']
+
+def getTooltipData():
+    TOOLTIPS_PATH = xml_folder + "tooltips.xml"
+    if not os.path.isfile(TOOLTIPS_PATH):
+        print("Couldn't find tooltips.xml at " + TOOLTIPS_PATH)
+        exit()
+
+    tooltipData = {}
+
+    tree = xml.parse(TOOLTIPS_PATH)
+    root = tree.getroot()
+
+    for tooltip in root.iter('CardTooltip'):
+        tooltipData[tooltip.attrib['id']] = tooltip
+
+    return tooltipData
+
+def evaluateInfoData(cards):
+    # Now that we have the raw strings, we have to get any values that are missing.
+    for cardId in cards:
+        # Some cards don't have info.
+        if cards[cardId]['info'] == None or cards[cardId]['info'] == "":
+            continue
+            
+        # Set info to be the raw tooltip string.
+        tooltipId = cards[cardId]['info']
+        cards[cardId]['info'] = TOOLTIPS.get(tooltipId)
+
+        result = re.findall(r'.*?\{(.*?)\}.*?', cards[cardId]['info']) # Regex. Get all strings that lie between a '{' and '}'.
+
+        tooltip = TOOLTIP_DATA.get(tooltipId)
+        for key in result:
+            for variable in tooltip.iter('VariableData'):
+                data = variable.find(key)
+                if data == None:
+                    # This is not the right variable for this key, let's check the next one.
+                    continue
+                if "crd" in key:
+                    # Spawn a specific card.
+                    crd = data.attrib['V']
+                    if crd != "":
+                        cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", cards[crd]['name'])
+                        # We've dealt with this key, move on.
+                        continue
+                if variable.attrib['key'] == key:
+                    # The value is sometimes given immediately here.
+                    if data.attrib['V'] != "":
+                        cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", data.attrib['V'])
+                    else: # Otherwise we are going to have to look in the ability data to find the value.
+                        abilityId = variable.find(key).attrib['abilityId']
+                        paramName = variable.find(key).attrib['paramName']
+                        cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", getAbilityValue(abilityId, paramName))
+
+def getCardNames():
+    CARD_NAME_PATH = xml_folder + "card_names.txt"
+    if not os.path.isfile(CARD_NAME_PATH):
+        print("Couldn't find card_names.txt at " + CARD_NAME_PATH)
+        exit()
+
+    cardNames = {}
+
+    nameFile = open(CARD_NAME_PATH, "r")
+    for line in nameFile:
+        split = line.split(";")
+        if "_name" in split[1]:
+            nameId = split[1].replace("_name", "").replace("\"", "")
+            # Remove any quotation marks and new lines.
+            cardNames[nameId] = split[2].replace("\"", "").replace("\n", "")
+
+    nameFile.close()
+    return cardNames
+
+def getFlavorStrings():
+    CARD_NAME_PATH = xml_folder + "card_names.txt"
+    if not os.path.isfile(CARD_NAME_PATH):
+        print("Couldn't find card_names.txt at " + CARD_NAME_PATH)
+        exit()
+
+    flavorStrings = {}
+
+    nameFile = open(CARD_NAME_PATH, "r")
+    for line in nameFile:
+        split = line.split(";")
+        if "_fluff" in split[1]:
+            flavorId = split[1].replace("_fluff", "").replace("\"", "")
+            # Remove any quotation marks and new lines.
+            flavorStrings[flavorId] = split[2].replace("\"", "").replace("\n", "")
+
+    nameFile.close()
+    return flavorStrings
+
+def getCardTemplates():
+    TEMPLATES_PATH = xml_folder + "templates.xml"
+    if not os.path.isfile(TEMPLATES_PATH):
+        print("Couldn't find templates.xml at " + TEMPLATES_PATH)
+        exit()
+
+    cardTemplates = {}
+
+    tree = xml.parse(TEMPLATES_PATH)
+    root = tree.getroot()
+
+    for template in root.iter('CardTemplate'):
+        cardTemplates[template.attrib['id']] = template
+
+    return cardTemplates
+
+def createCardJson():
+    cards = {}
+
+    for templateId in TEMPLATES:
+        template = TEMPLATES[templateId]
+        card = {}
+        card['ingameId'] = template.attrib['id']
+        card['strength'] = int(template.attrib['power'])
+        card['type'] = template.attrib['group']
+        card['faction'] = template.attrib['factionId'].replace("NorthernKingdom", "Northern Realms")
+
+        key = template.attrib['dbgStr'].lower().replace(" ", "_").replace("'", "")
+        # Remove any underscores from the end.
+        if key[-1] == "_":
+            key = key[:-1]
+
+        card['name'] = CARD_NAMES.get(key)
+        card['flavor'] = FLAVOR_STRINGS.get(key)
+        
+        # False by default, will be set to true if collectible or is a token of a released card.
+        card['released'] = False
+
+        card['info'] = ""
+        if (template.find('Tooltip') != None):
+            # Set to tooltipId for now, we will evaluate after we have looked at every card.
+            card['info'] = template.find('Tooltip').attrib['key']
+
+        card['lane'] = []
+        card['loyalty'] = []
+        for flag in template.iter('flag'):
+            key = flag.attrib['name']
+
+            if key == "Loyal" or key == "Disloyal":
+                card['loyalty'].append(key)
+
+            if key == "Melee" or key == "Ranged" or key == "Siege" or key == "Event":
+                card['lane'].append(key)
+
+        card['category'] = []
+        for flag in template.iter('Category'):
+            key = flag.attrib['id']
+            if key in CATEGORIES:
+                card['category'].append(key.replace("_", " "))
+
+        card['variations'] = {}
+
+        for definition in template.find('CardDefinitions').findall('CardDefinition'):
+            variation = {}
+            variationId = definition.attrib['id']
+
+            variation['variationId'] = variationId
+            variation['avaliability'] = definition.find('Availability').attrib['V']
+            collectible = variation['avaliability'] == "BaseSet"
+            variation['collectible'] = collectible
+            
+            # If a card is collectible, we know it has been released.
+            if collectible:
+                card['released'] = True
+
+            variation['rarity'] = definition.find('Rarity').attrib['V']
+
+            variation['craft'] = CRAFT_VALUES[variation['rarity']]
+            variation['mill'] = MILL_VALUES[variation['rarity']]
+
+            art = {}
+            art['fullsizeImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['HighArt']
+            art['thumbnailImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['LowArt']
+            art['artist'] = definition.find("UnityLinks").find("StandardArt").attrib['author']
+            variation['art'] = art
+
+            card['variations'][variationId] = variation
+
+        cards[card['ingameId']] = card
+
+    return cards
+    
+def evaluateTokens(cards):
+    for cardId in cards:
+        card = cards[cardId]
+        if card['released']:
+            for possibleTokenId in cards:
+                possibleToken = cards[possibleTokenId]
+                # If a card is a token of a released card, it has also been released.
+                if possibleToken['name'] in card['info']:
+                    possibleToken['released'] = True
+                    print(possibleToken['name'])
+
 xml_folder = sys.argv[1]
 
 # Add a backslash on the end if it doesn't exist.
@@ -13,31 +257,6 @@ if xml_folder[-1] != "/":
 
 if not os.path.isdir(xml_folder):
     print(xml_folder + " is not a valid directory")
-    exit()
-
-TEMPLATES_PATH = xml_folder + "templates.xml"
-if not os.path.isfile(TEMPLATES_PATH):
-    print("Couldn't find templates.xml at " + TEMPLATES_PATH)
-    exit()
-
-TOOLTIP_STRINGS_PATH = xml_folder + "tooltip_strings.txt"
-if not os.path.isfile(TOOLTIP_STRINGS_PATH):
-    print("Couldn't find tooltip_strings.txt at " + TOOLTIP_STRINGS_PATH)
-    exit()
-
-CARD_NAME_PATH = xml_folder + "card_names.txt"
-if not os.path.isfile(CARD_NAME_PATH):
-    print("Couldn't find card_names.txt at " + CARD_NAME_PATH)
-    exit()
-
-TOOLTIPS_PATH = xml_folder + "tooltips.xml"
-if not os.path.isfile(TOOLTIPS_PATH):
-    print("Couldn't find tooltips.xml at " + TOOLTIPS_PATH)
-    exit()
-
-CARD_ABILITIES_PATH = xml_folder + "abilities.xml"
-if not os.path.isfile(CARD_ABILITIES_PATH):
-    print("Couldn't find abilities.xml at " + CARD_ABILITIES_PATH)
     exit()
 
 CRAFT_VALUES = {}
@@ -56,174 +275,18 @@ CATEGORIES = ["Vampire", "Mage", "Elf", "Potion", "Weather", "Special", "Dyrad",
               "Shapeshifter", "Blue_Stripes", "Wild_Hunt", "Permadeath", "Ambush", "Fleeting", 
               "Vodyanoi", "Witcher", "Relentless", "Dwarf", "Dragon"]
 
-def saveJson(filename, cardList):
-    filepath = os.path.join("../outputs/" + filename)
-    print("Saving %s cards to: %s" % (len(cardList), filepath))
-    with open(filepath, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(cardList, f, sort_keys=True, indent=2, separators=(',', ': '))
+TEMPLATES = getCardTemplates()
+ABILITIES = getAbilityData()
+TOOLTIPS = getRawTooltips()
+TOOLTIP_DATA = getTooltipData()
+CARD_NAMES = getCardNames()
+FLAVOR_STRINGS = getFlavorStrings()
 
-def cleanHtml(raw_html):
-    cleanr = re.compile('<.*?>')
-    cleantext = re.sub(cleanr, '', raw_html)
-    return cleantext
+cardData = createCardJson()
 
-def getRawTooltip(card_template):
-    info = ""
-
-    tooltipId = "-1"
-    if card_template.find('Tooltip') != None:
-        tooltipId = card_template.find('Tooltip').attrib['key']
-        tooltipIdMap[card_template.attrib['id']] = tooltipId
-    else:
-        # This card has no tooltip, immediately return.
-        return None
-
-    descriptionId = tooltipId
-    while len(descriptionId) < 4:
-        descriptionId = "0" + descriptionId
-
-    tooltip_strings = open(TOOLTIP_STRINGS_PATH, "r")
-    for tooltip in tooltip_strings:
-        split = tooltip.split(";")
-        if descriptionId in split[1]:
-            # Remove any quotation marks, new lines and html tags.
-            info = cleanHtml(split[2].replace("\"", "").replace("\n", ""))
-
-    tooltip_strings.close()
-    return info
-
-def getAbilityValue(abilityId, paramName):
-    abilities_tree = xml.parse(CARD_ABILITIES_PATH)
-    abilities_root = abilities_tree.getroot()
-   
-    for ability in abilities_root.iter('Ability'):
-        if ability.attrib['id'] == abilityId:
-            if ability.find(paramName) != None:
-                return ability.find(paramName).attrib['V']
-            else:
-                print(abilityId + ":" + paramName)
-                return "JAMIEA"
-
-def evaluateInfoData(cards):
-    # Now that we have the raw strings, we have to get any values that are missing.
-    for cardId in cards:
-        # Some cards don't have info.
-        if cards[cardId]['info'] == None:
-            continue
-
-        result = re.findall(r'.*?\{(.*?)\}.*?', cards[cardId]['info']) # Regex. Get all strings that lie between a '{' and '}'.
-
-        tooltips_tree = xml.parse(TOOLTIPS_PATH)
-        tooltips_root = tooltips_tree.getroot()
-
-        for tooltip in tooltips_root.iter('CardTooltip'):
-            if tooltip.attrib['id'] == tooltipIdMap[cardId]:
-                for key in result:
-                    for variable in tooltip.iter('VariableData'):
-                        data = variable.find(key)
-                        if data == None:
-                            # This is not the right variable for this key, let's check the next one.
-                            continue
-                        if "crd" in key:
-                            # Spawn a specific card.
-                            crd = data.attrib['V']
-                            if crd != "":
-                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", cards[crd]['name'])
-                                # We've dealt with this key, move on.
-                                continue
-                        if variable.attrib['key'] == key:
-                            # The value is sometimes given immediately here.
-                            if data.attrib['V'] != "":
-                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", data.attrib['V'])
-                            else: # Otherwise we are going to have to look in the ability data to find the value.
-                                abilityId = variable.find(key).attrib['abilityId']
-                                paramName = variable.find(key).attrib['paramName']
-                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", getAbilityValue(abilityId, paramName))
-
-def getInfoFromNameFile(card_template, suffix = "name"):
-    result = ""
-    key = card_template.attrib['dbgStr'].lower().replace(" ", "_").replace("'", "")
-
-    # Add an underscore to the end if there isn't already one.
-    if not key[-1] == "_":
-        key += "_"
-
-    key += suffix
-
-    card_names = open(CARD_NAME_PATH, "r")
-    for line in card_names:
-        split = line.split(";")
-        if key in split[1]:
-            # Remove any quotation marks and new lines.
-            result = split[2].replace("\"", "").replace("\n", "")
-
-    card_names.close()
-    return result
-
-def getCardData(root):
-    data = {}
-    for template in root:
-        cardId = template.attrib['id']
-        card = {}
-
-        card['ingameId'] = cardId
-        card['strength'] = int(template.attrib['power'])
-        card['type'] = template.attrib['group']
-        card['lane'] = []
-        card['loyalty'] = []
-        card['faction'] = template.attrib['factionId'].replace("NorthernKingdom", "Northern Realms")
-
-        card['name'] = getInfoFromNameFile(template)
-        card['flavor'] = getInfoFromNameFile(template, "fluff")
-        card['category'] = []
-        card['info'] = getRawTooltip(template)
-
-        for flag in template.iter('flag'):
-            key = flag.attrib['name']
-
-            if key == "Loyal" or key == "Disloyal":
-                card['loyalty'].append(key)
-
-            if key == "Melee" or key == "Ranged" or key == "Siege" or key == "Event":
-                card['lane'].append(key)
-
-        for flag in template.iter('Category'):
-            key = flag.attrib['id']
-            if key in CATEGORIES:
-                card['category'].append(key.replace("_", " "))
-
-        card['variations'] = {}
-
-        for definition in template.find('CardDefinitions').findall('CardDefinition'):
-            variation = {}
-            variationId = definition.attrib['id']
-
-            variation['variationId'] = variationId
-            variation['avaliability'] = definition.find('Availability').attrib['V']
-            variation['collectible'] = variation['avaliability'] == "BaseSet"
-            variation['rarity'] = definition.find('Rarity').attrib['V']
-
-            variation['craft'] = CRAFT_VALUES[variation['rarity']]
-            variation['mill'] = MILL_VALUES[variation['rarity']]
-
-            art = {}
-            art['fullsizeImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['HighArt']
-            art['thumbnailImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['LowArt']
-            art['artist'] = definition.find("UnityLinks").find("StandardArt").attrib['author']
-            variation['art'] = art
-
-            card['variations'][variationId] = variation
-
-        data[cardId] = card
-
-    return data
-
-tree = xml.parse(TEMPLATES_PATH)
-templates_root = tree.getroot()
-
-tooltipIdMap = {}
-cardData = getCardData(templates_root)
+# Requires information about other cards, so needs to be done after we have looked at every card.
 evaluateInfoData(cardData)
+evaluateTokens(cardData)
 
 saveJson("latest.json", cardData)
 
