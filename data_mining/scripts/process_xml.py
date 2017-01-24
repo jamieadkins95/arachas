@@ -129,6 +129,8 @@ def evaluateInfoData(cardData):
                             crd = data.attrib['V']
                             if crd != "":
                                 cardData[cardId]['info'] = cardData[cardId]['info'].replace("{" + key + "}", cardData[crd]['name'])
+                                # We've found a token card! Mark it as released.
+                                cardData[crd]['released'] = True
                                 # We've dealt with this key, move on.
                                 continue
                         if variable.attrib['key'] == key:
@@ -172,6 +174,7 @@ def getCardData(root):
         card['lane'] = []
         card['loyalty'] = []
         card['faction'] = template.attrib['factionId'].replace("NorthernKingdom", "Northern Realms")
+        card['released'] = False
 
         card['name'] = getInfoFromNameFile(template)
         card['flavor'] = getInfoFromNameFile(template, "fluff")
@@ -200,7 +203,13 @@ def getCardData(root):
 
             variation['variationId'] = variationId
             variation['avaliability'] = definition.find('Availability').attrib['V']
-            variation['collectible'] = variation['avaliability'] != "NonOwnable"
+            collectible = variation['avaliability'] != "NonOwnable"
+            variation['collectible'] = collectible
+
+            # If the card is collectible we definitely know that it has been released.
+            if collectible:
+                card['released'] = collectible
+
             variation['rarity'] = definition.find('Rarity').attrib['V']
 
             variation['craft'] = CRAFT_VALUES[variation['rarity']]
