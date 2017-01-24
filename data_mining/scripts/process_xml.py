@@ -104,14 +104,14 @@ def getAbilityValue(abilityId, paramName):
                 print(abilityId + ":" + paramName)
                 return "JAMIEA"
 
-def evaluateInfoData(cardData):
+def evaluateInfoData(cards):
     # Now that we have the raw strings, we have to get any values that are missing.
-    for cardId in cardData:
+    for cardId in cards:
         # Some cards don't have info.
-        if cardData[cardId]['info'] == None:
+        if cards[cardId]['info'] == None:
             continue
 
-        result = re.findall(r'.*?\{(.*?)\}.*?', cardData[cardId]['info']) # Regex. Get all strings that lie between a '{' and '}'.
+        result = re.findall(r'.*?\{(.*?)\}.*?', cards[cardId]['info']) # Regex. Get all strings that lie between a '{' and '}'.
 
         tooltips_tree = xml.parse(TOOLTIPS_PATH)
         tooltips_root = tooltips_tree.getroot()
@@ -128,19 +128,19 @@ def evaluateInfoData(cardData):
                             # Spawn a specific card.
                             crd = data.attrib['V']
                             if crd != "":
-                                cardData[cardId]['info'] = cardData[cardId]['info'].replace("{" + key + "}", cardData[crd]['name'])
+                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", cards[crd]['name'])
                                 # We've found a token card! Mark it as released.
-                                cardData[crd]['released'] = True
+                                cards[crd]['released'] = True
                                 # We've dealt with this key, move on.
                                 continue
                         if variable.attrib['key'] == key:
                             # The value is sometimes given immediately here.
                             if data.attrib['V'] != "":
-                                cardData[cardId]['info'] = cardData[cardId]['info'].replace("{" + key + "}", data.attrib['V'])
+                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", data.attrib['V'])
                             else: # Otherwise we are going to have to look in the ability data to find the value.
                                 abilityId = variable.find(key).attrib['abilityId']
                                 paramName = variable.find(key).attrib['paramName']
-                                cardData[cardId]['info'] = cardData[cardId]['info'].replace("{" + key + "}", getAbilityValue(abilityId, paramName))
+                                cards[cardId]['info'] = cards[cardId]['info'].replace("{" + key + "}", getAbilityValue(abilityId, paramName))
 
 def getInfoFromNameFile(card_template, suffix = "name"):
     result = ""
@@ -163,7 +163,7 @@ def getInfoFromNameFile(card_template, suffix = "name"):
     return result
 
 def getCardData(root):
-    cardData = {}
+    data = {}
     for template in root:
         cardId = template.attrib['id']
         card = {}
@@ -223,9 +223,9 @@ def getCardData(root):
 
             card['variations'][variationId] = variation
 
-        cardData[cardId] = card
+        data[cardId] = card
 
-    return cardData
+    return data
 
 tree = xml.parse(TEMPLATES_PATH)
 templates_root = tree.getroot()
