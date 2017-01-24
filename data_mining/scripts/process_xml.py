@@ -203,7 +203,7 @@ def getCardData(root):
 
             variation['variationId'] = variationId
             variation['avaliability'] = definition.find('Availability').attrib['V']
-            collectible = variation['avaliability'] == "BaseSet"
+            collectible = variation['avaliability'] != "NonOwnable"
             variation['collectible'] = collectible
 
             # If the card is collectible we definitely know that it has been released.
