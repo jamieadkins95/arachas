@@ -237,17 +237,32 @@ def createCardJson():
         cards[card['ingameId']] = card
 
     return cards
-    
+
+# If a card is a token of a released card, it has also been released.
 def evaluateTokens(cards):
     for cardId in cards:
         card = cards[cardId]
         if card['released']:
-            for possibleTokenId in cards:
-                possibleToken = cards[possibleTokenId]
-                # If a card is a token of a released card, it has also been released.
-                if possibleToken['name'] in card['info']:
-                    possibleToken['released'] = True
-                    print(possibleToken['name'])
+            for ability in TEMPLATES[cardId].iter('Ability'):
+                ability = ABILITIES[ability.attrib['id']]
+
+                # There are several different ways that a template can be referenced.
+                for template in ability.iter('templateId'):
+                    tokenId = ability.find('templateId').attrib['V']
+                    if cards.get(tokenId) != None:
+                        cards.get(tokenId)['released'] = True
+
+                for template in ability.iter('TemplatesFromId'):
+                    for token in template.iter('id'):
+                        tokenId = token.attrib['V']
+                        if cards.get(tokenId) != None:
+                            cards.get(tokenId)['released'] = True
+
+                for template in ability.iter('TransformTemplate'):
+                    tokenId = template.attrib['V']
+                    if cards.get(tokenId) != None:
+                        cards.get(tokenId)['released'] = True
+
 
 xml_folder = sys.argv[1]
 
@@ -286,6 +301,7 @@ cardData = createCardJson()
 
 # Requires information about other cards, so needs to be done after we have looked at every card.
 evaluateInfoData(cardData)
+# We have to do this as well to catch cards like Botchling, that are explicitly named in the Baron's tooltip.
 evaluateTokens(cardData)
 
 saveJson("latest.json", cardData)
