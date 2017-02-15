@@ -215,8 +215,8 @@ def createCardJson():
             variationId = definition.attrib['id']
 
             variation['variationId'] = variationId
-            variation['avaliability'] = definition.find('Availability').attrib['V']
-            collectible = variation['avaliability'] == "BaseSet"
+            variation['availability'] = definition.find('Availability').attrib['V']
+            collectible = variation['availability'] == "BaseSet"
             variation['collectible'] = collectible
             
             # If a card is collectible, we know it has been released.
