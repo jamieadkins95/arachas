@@ -1,9 +1,10 @@
 ## Usage
 
+### Getting Card Data
 1. Download UABE from [here](https://7daystodie.com/forums/showthread.php?22675-Unity-Assets-Bundle-Extractor)
 2. Run AssetBundleExtractor.exe (Note: this is a windows only tool).
 3. File -> Open -> Select "Path\to\Gwent\GWENT_Data\StreamingAssets/AssetBundles/data_definitions". You will prompted to unpack the file, do that. Then click info.
-4. Find the GwentCardTemplates asset (note there is more than one, always get the largest*)
+4. Find the GwentCardTemplates asset.
 5. Click export raw and save that file as 'GwentCardTemplates.dat'.
 6. Repeat steps 4 and 5 for the following assets: "GwentCardAbilities", "GwentTooltips", "cards_en-US" "tooltips_en-US". Save them all in the same directory.
 7. Run file_setup.sh passing in the directory that contains the .dat files.
@@ -11,7 +12,11 @@
 8. Run process_xml.py, passing in the outputs folder from step 8.
     e.g. ./process_xml.py ../outputs/
 
+### Handling Card Images
+1. CDPR provides us with card images, but they have bright green backgrounds. We will use ImageMagick to handle them. 
+2. Install ImageMagick and unrar with "apt-get install ImageMagick" and "apt-get install unrar"
+3. Unzip the rar file from CDPR using "unrar e Example.rar"
+4. Run scripts/makeTransparent.sh passing in the directory of the unzipped images as an argument. e.g. "./makeTransparent.sh --inputs ./images"
 
-
-
-* The difference between the files may be the different patches, Geralt Aard is present in the largest file, but not the smallest for example.
+Optional (If you want to save the cards in the file structure "images/cardId/variationId/fullsize.png")
+1. Run scripts/sortImages.py passing in the directory of the images as an argument. e.g. "./sortImages.py ./images"
