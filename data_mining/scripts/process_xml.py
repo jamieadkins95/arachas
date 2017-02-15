@@ -229,8 +229,8 @@ def createCardJson():
             variation['mill'] = MILL_VALUES[variation['rarity']]
 
             art = {}
-            art['fullsizeImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['HighArt']
-            art['thumbnailImageUrl'] = definition.find("UnityLinks").find("StandardArt").attrib['LowArt']
+            art['fullsizeImageUrl'] = "images/" + card['ingameId'] + "/" + variation['variationId'] + "/" + "fullsize.png"
+            art['thumbnailImageUrl'] = "images/" + card['ingameId'] + "/" + variation['variationId'] + "/" + "thumbnail.png"
             art['artist'] = definition.find("UnityLinks").find("StandardArt").attrib['author']
             variation['art'] = art
 
@@ -264,34 +264,6 @@ def evaluateTokens(cards):
                     tokenId = template.attrib['V']
                     if cards.get(tokenId) != None:
                         cards.get(tokenId)['released'] = True
-                        
-NAME_REPLACE = {" ": "_", ":": "", "'": "", "`": "", "’": "", "(": "", ")": "", "-": "_"}
-                        
-# Transform the given name to an url friendly format.
-def getNameKey(name):
-    # https://stackoverflow.com/questions/6116978/python-replace-multiple-strings
-    name = name.lower()
-
-    # In one pass, replace a few space characters and special characters.
-    rep = dict((re.escape(k), v) for k, v in NAME_REPLACE.items())
-    pattern = re.compile("|".join(rep.keys()))
-    name = pattern.sub(lambda m: rep[re.escape(m.group(0))], name)
-
-    # Tries to represent the Unicode data in ASCII characters. It will remove accents and the likes.
-    name = unidecode(name)
-    return name
-
-def getImageUrls(cards):
-    with open('../../output/latest.json') as data_file:    
-        data = json.load(data_file)
-        for gwentify in data:
-            for cardId in cards:
-                card = cards[cardId]
-                print(getNameKey(card['name']))
-                if getNameKey(card['name']) == gwentify['key']:
-                    for variationId in card['variations']:
-                        card['variations'][variationId]['art']['fullsizeImageUrl'] = gwentify['variations'][0]['art']['fullsizeImageUrl']
-
 
 xml_folder = sys.argv[1]
 
@@ -332,8 +304,6 @@ cardData = createCardJson()
 evaluateInfoData(cardData)
 # We have to do this as well to catch cards like Botchling, that are explicitly named in the Baron's tooltip.
 evaluateTokens(cardData)
-
-getImageUrls(cardData)
 
 saveJson("latest.json", cardData)
 
