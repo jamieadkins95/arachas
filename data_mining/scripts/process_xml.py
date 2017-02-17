@@ -245,6 +245,7 @@ def evaluateTokens(cards):
     for cardId in cards:
         card = cards[cardId]
         if card['released']:
+            card['related'] = []
             for ability in TEMPLATES[cardId].iter('Ability'):
                 ability = ABILITIES[ability.attrib['id']]
 
@@ -253,17 +254,20 @@ def evaluateTokens(cards):
                     tokenId = ability.find('templateId').attrib['V']
                     if cards.get(tokenId) != None:
                         cards.get(tokenId)['released'] = True
+                        card['related'].append(tokenId)
 
                 for template in ability.iter('TemplatesFromId'):
                     for token in template.iter('id'):
                         tokenId = token.attrib['V']
                         if cards.get(tokenId) != None:
                             cards.get(tokenId)['released'] = True
+                            card['related'].append(tokenId)
 
                 for template in ability.iter('TransformTemplate'):
                     tokenId = template.attrib['V']
                     if cards.get(tokenId) != None:
                         cards.get(tokenId)['released'] = True
+                        card['related'].append(tokenId)
 
 xml_folder = sys.argv[1]
 
